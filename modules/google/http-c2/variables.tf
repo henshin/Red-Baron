@@ -1,4 +1,4 @@
-variable "count" {
+variable "instance_count" {
   default = 1
 }
 
@@ -41,9 +41,9 @@ variable "install" {
 variable "install" {
   type = "map"
   default = {
-    "empire" = "./scripts/install_empire.sh"
-    "metasploit" = "./scripts/install_metasploit.sh"
-    "cobaltstrike" = "./scripts/install_cobalt_strike.sh"
+    "empire" = "./data/scripts/install_empire.sh"
+    "metasploit" = "./data/scripts/install_metasploit.sh"
+    "cobaltstrike" = "./data/scripts/install_cobalt_strike.sh"
   }
 }
 */

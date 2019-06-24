@@ -10,7 +10,7 @@ variable "subject_alternative_names" {
   default = {}
 }
 
-variable "count" {
+variable "instance_count" {
   default = 1
 }
 

@@ -5,7 +5,7 @@ resource "random_id" "rand" {
 }
 
 resource "azurerm_resource_group" "rg" {
-  count    = "${var.count}"
+  count    = "${var.instance_count}"
   location = "${element(var.locations, count.index)}"
   name     = "${var.resource_group_name}-${count.index}-${random_id.rand.hex}"
 }

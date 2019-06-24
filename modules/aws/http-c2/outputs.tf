@@ -5,3 +5,4 @@ output "ips" {
 output "ssh_user" {
   value = "admin"
 }
+

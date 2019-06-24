@@ -3,24 +3,24 @@ terraform {
 }
 
 resource "random_id" "server" {
-  count = "${var.count}"
+  count = "${var.instance_count}"
   byte_length = 4
 }
 
 resource "tls_private_key" "ssh" {
-  count = "${var.count}"
+  count = "${var.instance_count}"
   algorithm = "RSA"
   rsa_bits = 4096
 }
 
 resource "digitalocean_ssh_key" "ssh_key" {
-  count = "${var.count}"
+  count = "${var.instance_count}"
   name  = "http-c2-key-${random_id.server.*.hex[count.index]}"
   public_key = "${tls_private_key.ssh.*.public_key_openssh[count.index]}"
 }
 
 resource "digitalocean_droplet" "http-c2" {
-  count = "${var.count}"
+  count = "${var.instance_count}"
   image = "debian-9-x64"
   name = "http-c2-${random_id.server.*.hex[count.index]}"
   region = "${var.available_regions[element(var.regions, count.index)]}"
@@ -48,7 +48,7 @@ resource "digitalocean_droplet" "http-c2" {
 }
 
 resource "null_resource" "ansible_provisioner" {
-  count = "${signum(length(var.ansible_playbook)) == 1 ? var.count : 0}"
+  count = "${signum(length(var.ansible_playbook)) == 1 ? var.instance_count : 0}"
 
   depends_on = ["digitalocean_droplet.http-c2"]
 
@@ -72,7 +72,7 @@ resource "null_resource" "ansible_provisioner" {
 
 data "template_file" "ssh_config" {
 
-  count    = "${var.count}"
+  count    = "${var.instance_count}"
 
   template = "${file("./data/templates/ssh_config.tpl")}"
 
@@ -89,7 +89,7 @@ data "template_file" "ssh_config" {
 
 resource "null_resource" "gen_ssh_config" {
 
-  count = "${var.count}"
+  count = "${var.instance_count}"
 
   triggers {
     template_rendered = "${data.template_file.ssh_config.*.rendered[count.index]}"

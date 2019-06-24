@@ -2,7 +2,7 @@ variable "domain" {}
 
 variable "type" {}
 
-variable "count" {
+variable "instance_count" {
   default = 1
 }
 
