@@ -3,7 +3,7 @@ variable "install" {
   default = []
 }
 
-variable "count" {
+variable "instance_count" {
   default = 1
 }
 

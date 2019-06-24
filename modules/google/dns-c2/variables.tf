@@ -2,7 +2,7 @@ variable "redirect_to" {
   type = "list"
 }
 
-variable "count" {
+variable "instance_count" {
   default = 1
 }
 

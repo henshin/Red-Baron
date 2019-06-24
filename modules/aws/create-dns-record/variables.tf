@@ -1,8 +1,10 @@
-variable "domain" {}
+variable "domain" {
+}
 
-variable "type" {}
+variable "type" {
+}
 
-variable "count" {
+variable "instance_count" {
   default = 1
 }
 
@@ -11,5 +13,6 @@ variable "ttl" {
 }
 
 variable "records" {
-  type = "map"
+  type = map(string)
 }
+

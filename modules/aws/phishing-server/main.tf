@@ -2,23 +2,24 @@ terraform {
   required_version = ">= 0.11.0"
 }
 
-data "aws_region" "current" {}
+data "aws_region" "current" {
+}
 
 resource "random_id" "server" {
-  count = "${var.count}"
+  count       = var.instance_count
   byte_length = 4
 }
 
 resource "tls_private_key" "ssh" {
-  count = "${var.count}"
+  count     = var.instance_count
   algorithm = "RSA"
-  rsa_bits = 4096
+  rsa_bits  = 4096
 }
 
 resource "aws_key_pair" "phishing-server" {
-  count = "${var.count}"
-  key_name = "phishing-server-key-${count.index}"
-  public_key = "${tls_private_key.ssh.*.public_key_openssh[count.index]}"
+  count      = var.instance_count
+  key_name   = "phishing-server-key-${count.index}"
+  public_key = tls_private_key.ssh[count.index].public_key_openssh
 }
 
 resource "aws_instance" "phishing-server" {
@@ -28,17 +29,17 @@ resource "aws_instance" "phishing-server" {
 
   //provider = "aws.${element(var.regions, count.index)}"
 
-  count = "${var.count}"
-  
+  count = var.instance_count
+
   tags = {
-    Name = "phishing-server-${random_id.server.*.hex[count.index]}"
+    Name = "phishing-server-${random_id.server[count.index].hex}"
   }
 
-  ami = "${var.amis[data.aws_region.current.name]}"
-  instance_type = "${var.instance_type}"
-  key_name = "${aws_key_pair.phishing-server.*.key_name[count.index]}"
-  vpc_security_group_ids = ["${aws_security_group.phishing-server.id}"]
-  subnet_id = "${var.subnet_id}"
+  ami                         = var.amis[data.aws_region.current.name]
+  instance_type               = var.instance_type
+  key_name                    = aws_key_pair.phishing-server[count.index].key_name
+  vpc_security_group_ids      = [aws_security_group.phishing-server.id]
+  subnet_id                   = var.subnet_id
   associate_public_ip_address = true
 
   provisioner "remote-exec" {
@@ -46,41 +47,41 @@ resource "aws_instance" "phishing-server" {
       "sudo apt-get update",
       "sudo apt-get install -y tmux apache2 certbot mosh",
       "sudo a2enmod ssl",
-      "sudo systemctl stop apache2"
+      "sudo systemctl stop apache2",
     ]
 
     connection {
-        type = "ssh"
-        user = "admin"
-        private_key = "${tls_private_key.ssh.*.private_key_pem[count.index]}"
+      host        = coalesce(self.public_ip, self.private_ip)
+      type        = "ssh"
+      user        = "admin"
+      private_key = tls_private_key.ssh[count.index].private_key_pem
     }
   }
 
   provisioner "local-exec" {
-    command = "echo \"${tls_private_key.ssh.*.private_key_pem[count.index]}\" > ./data/ssh_keys/${self.public_ip} && echo \"${tls_private_key.ssh.*.public_key_openssh[count.index]}\" > ./data/ssh_keys/${self.public_ip}.pub && chmod 600 ./data/ssh_keys/*" 
+    command = "echo \"${tls_private_key.ssh[count.index].private_key_pem}\" > ./data/ssh_keys/${self.public_ip} && echo \"${tls_private_key.ssh[count.index].public_key_openssh}\" > ./data/ssh_keys/${self.public_ip}.pub && chmod 600 ./data/ssh_keys/*"
   }
 
   provisioner "local-exec" {
-    when = "destroy"
+    when    = destroy
     command = "rm ./data/ssh_keys/${self.public_ip}*"
   }
-
 }
 
 resource "null_resource" "ansible_provisioner" {
-  count = "${signum(length(var.ansible_playbook)) == 1 ? var.count : 0}"
+  count = signum(length(var.ansible_playbook)) == 1 ? var.instance_count : 0
 
-  depends_on = ["aws_instance.phishing-server"]
+  depends_on = [aws_instance.phishing-server]
 
-  triggers {
-    droplet_creation = "${join("," , aws_instance.phishing-server.*.id)}"
-    policy_sha1 = "${sha1(file(var.ansible_playbook))}"
+  triggers = {
+    droplet_creation = join(",", aws_instance.phishing-server.*.id)
+    policy_sha1      = filesha1(var.ansible_playbook)
   }
 
   provisioner "local-exec" {
-    command = "ansible-playbook ${join(" ", compact(var.ansible_arguments))} --user=admin --private-key=./data/ssh_keys/${aws_instance.phishing-server.*.public_ip[count.index]} -e host=${aws_instance.phishing-server.*.public_ip[count.index]} ${var.ansible_playbook}"
+    command = "ansible-playbook ${join(" ", compact(var.ansible_arguments))} --user=admin --private-key=./data/ssh_keys/${aws_instance.phishing-server[count.index].public_ip} -e host=${aws_instance.phishing-server[count.index].public_ip} ${var.ansible_playbook}"
 
-    environment {
+    environment = {
       ANSIBLE_HOST_KEY_CHECKING = "False"
     }
   }
@@ -91,37 +92,34 @@ resource "null_resource" "ansible_provisioner" {
 }
 
 data "template_file" "ssh_config" {
+  count = var.instance_count
 
-  count    = "${var.count}"
+  template = file("./data/templates/ssh_config.tpl")
 
-  template = "${file("./data/templates/ssh_config.tpl")}"
+  depends_on = [aws_instance.phishing-server]
 
-  depends_on = ["aws_instance.phishing-server"]
-
-  vars {
-    name = "dns_rdir_${aws_instance.phishing-server.*.public_ip[count.index]}"
-    hostname = "${aws_instance.phishing-server.*.public_ip[count.index]}"
-    user = "admin"
-    identityfile = "${path.root}/data/ssh_keys/${aws_instance.phishing-server.*.public_ip[count.index]}"
+  vars = {
+    name         = "dns_rdir_${aws_instance.phishing-server[count.index].public_ip}"
+    hostname     = aws_instance.phishing-server[count.index].public_ip
+    user         = "admin"
+    identityfile = "${path.root}/data/ssh_keys/${aws_instance.phishing-server[count.index].public_ip}"
   }
-
 }
 
 resource "null_resource" "gen_ssh_config" {
+  count = var.instance_count
 
-  count = "${var.count}"
-
-  triggers {
-    template_rendered = "${data.template_file.ssh_config.*.rendered[count.index]}"
+  triggers = {
+    template_rendered = data.template_file.ssh_config[count.index].rendered
   }
 
   provisioner "local-exec" {
-    command = "echo '${data.template_file.ssh_config.*.rendered[count.index]}' > ./data/ssh_configs/config_${random_id.server.*.hex[count.index]}"
+    command = "echo '${data.template_file.ssh_config[count.index].rendered}' > ./data/ssh_configs/config_${random_id.server[count.index].hex}"
   }
 
   provisioner "local-exec" {
-    when = "destroy"
-    command = "rm ./data/ssh_configs/config_${random_id.server.*.hex[count.index]}"
+    when    = destroy
+    command = "rm ./data/ssh_configs/config_${random_id.server[count.index].hex}"
   }
-
 }
+

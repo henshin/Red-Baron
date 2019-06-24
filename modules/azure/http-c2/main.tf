@@ -1,13 +1,13 @@
 provider "azure" {}
 
 resource "tls_private_key" "ssh" {
-  count     = "${var.count}"
+  count     = "${var.instance_count}"
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
 resource "azurerm_virtual_network" "vnet" {
-  count               = "${var.count}"
+  count               = "${var.instance_count}"
   name                = "http-c2-vnet"
   address_space       = ["10.0.0.0/8"]
   location            = "${var.locations[count.index]}"
@@ -15,7 +15,7 @@ resource "azurerm_virtual_network" "vnet" {
 }
 
 resource "azurerm_subnet" "subnet" {
-  count                = "${var.count}"
+  count                = "${var.instance_count}"
   name                 = "subnet01"
   resource_group_name  = "${var.resource_group_names[count.index]}"
   virtual_network_name = "${element(azurerm_virtual_network.vnet.*.name, count.index)}"
@@ -23,7 +23,7 @@ resource "azurerm_subnet" "subnet" {
 }
 
 resource "azurerm_public_ip" "pip" {
-  count                        = "${var.count}"
+  count                        = "${var.instance_count}"
   name                         = "http-c2-pip-${count.index}"
   location                     = "${var.locations[count.index]}"
   resource_group_name          = "${var.resource_group_names[count.index]}"
@@ -31,7 +31,7 @@ resource "azurerm_public_ip" "pip" {
 }
 
 resource "azurerm_network_interface" "nic" {
-  count                     = "${var.count}"
+  count                     = "${var.instance_count}"
   name                      = "http-c2-nic-${count.index}"
   location                  = "${var.locations[count.index]}"
   resource_group_name       = "${var.resource_group_names[count.index]}"
@@ -46,7 +46,7 @@ resource "azurerm_network_interface" "nic" {
 }
 
 resource "azurerm_virtual_machine" "http-c2" {
-  count                 = "${var.count}"
+  count                 = "${var.instance_count}"
   name                  = "http-c2-${count.index}"
   location              = "${var.locations[count.index]}"
   resource_group_name   = "${var.resource_group_names[count.index]}"
@@ -86,7 +86,7 @@ resource "azurerm_virtual_machine" "http-c2" {
   }
 
   provisioner "remote-exec" {
-    scripts = "${concat(list("./scripts/core_deps.sh"), var.install)}"
+    scripts = "${concat(list("./data/scripts/core_deps.sh"), var.install)}"
 
     connection {
       type        = "ssh"
@@ -107,7 +107,7 @@ resource "azurerm_virtual_machine" "http-c2" {
 }
 
 resource "null_resource" "ansible_provisioner" {
-  count = "${signum(length(var.ansible_playbook)) == 1 ? var.count : 0}"
+  count = "${signum(length(var.ansible_playbook)) == 1 ? var.instance_count : 0}"
 
   depends_on = ["azurerm_virtual_machine.http-c2"]
 
@@ -131,7 +131,7 @@ resource "null_resource" "ansible_provisioner" {
 
 data "template_file" "ssh_config" {
 
-  count    = "${var.count}"
+  count    = "${var.instance_count}"
 
   template = "${file("./data/templates/ssh_config.tpl")}"
 
@@ -148,7 +148,7 @@ data "template_file" "ssh_config" {
 
 resource "null_resource" "gen_ssh_config" {
 
-  count = "${var.count}"
+  count = "${var.instance_count}"
 
   triggers {
     template_rendered = "${data.template_file.ssh_config.*.rendered[count.index]}"

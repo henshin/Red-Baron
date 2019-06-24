@@ -8,7 +8,7 @@ resource "random_id" "rand" {
 }
 
 resource "azurerm_storage_account" "sa" {
-  count                    = "${var.count}"
+  count                    = "${var.instance_count}"
   name                     = "redbaron${count.index}${random_id.rand.hex}"
   resource_group_name      = "${var.resource_group_names[count.index]}"
   location                 = "${var.locations[count.index]}"
@@ -17,7 +17,7 @@ resource "azurerm_storage_account" "sa" {
 }
 
 resource "azurerm_storage_container" "sc" {
-  count                 = "${var.count}"
+  count                 = "${var.instance_count}"
   name                  = "vhds"
   storage_account_name  = "${element(azurerm_storage_account.sa.*.name, count.index)}"
   resource_group_name   = "${var.resource_group_names[count.index]}"

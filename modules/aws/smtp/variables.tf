@@ -1,7 +1,10 @@
-variable "zone_id" {}
+variable "zone_id" {
+}
 
-variable "domain" {}
+variable "domain" {
+}
 
 variable "mx_subdomain" {
-    default = "mx"
+  default = "mx"
 }
+

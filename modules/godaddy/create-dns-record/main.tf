@@ -3,7 +3,7 @@ terraform {
 }
 
 resource "godaddy_domain_record" "record" {
-  count = "${var.count}"
+  count = "${var.instance_count}"
   domain   = "${var.domain}"
 
   record {

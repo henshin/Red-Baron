@@ -4,7 +4,7 @@ terraform {
 
 # Add a record to the domain
 resource "digitalocean_record" "record" {
-  count  = "${var.count}"
+  count  = "${var.instance_count}"
   domain = "${element(keys(var.records), count.index)}"
   type   = "${var.type}"
   value  = "${lookup(var.records, element(keys(var.records), count.index))}"

@@ -3,18 +3,18 @@ terraform {
 }
 
 resource "random_id" "server" {
-  count = "${var.count}"
+  count = "${var.instance_count}"
   byte_length = 4
 }
 
 resource "random_string" "password" {
-  count = "${var.count}"
+  count = "${var.instance_count}"
   length = 16
   special = true
 }
 
 resource "tls_private_key" "ssh" {
-  count = "${var.count}"
+  count = "${var.instance_count}"
   algorithm = "RSA"
   rsa_bits = 4096
 }
@@ -24,7 +24,7 @@ resource "linode_linode" "phishing-server" {
   // https://github.com/hashicorp/terraform/issues/14677
   // count = "${length(var.http_c2_ips)}"
 
-  count = "${var.count}"
+  count = "${var.instance_count}"
   image = "Debian 9"
   kernel = "Latest 64 bit"
   name = "phishing-server-${random_id.server.*.hex[count.index]}"
@@ -61,7 +61,7 @@ resource "linode_linode" "phishing-server" {
 }
 
 resource "null_resource" "ansible_provisioner" {
-  count = "${signum(length(var.ansible_playbook)) == 1 ? var.count : 0}"
+  count = "${signum(length(var.ansible_playbook)) == 1 ? var.instance_count : 0}"
 
   depends_on = ["linode_linode.phishing-server"]
 
@@ -85,7 +85,7 @@ resource "null_resource" "ansible_provisioner" {
 
 data "template_file" "ssh_config" {
 
-  count    = "${var.count}"
+  count    = "${var.instance_count}"
 
   template = "${file("./data/templates/ssh_config.tpl")}"
 
@@ -102,7 +102,7 @@ data "template_file" "ssh_config" {
 
 resource "null_resource" "gen_ssh_config" {
 
-  count = "${var.count}"
+  count = "${var.instance_count}"
 
   triggers {
     template_rendered = "${data.template_file.ssh_config.*.rendered[count.index]}"

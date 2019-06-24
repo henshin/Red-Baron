@@ -15,7 +15,7 @@ variable "locations" {
   default = ["eastus2"]
 }
 
-variable "count" {
+variable "instance_count" {
   default = 1
 }
 

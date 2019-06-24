@@ -4,7 +4,7 @@ terraform {
 
 # Create the private key for the registration (not the certificate)
 resource "tls_private_key" "private_key" {
-  count = "${var.count}"
+  count = "${var.instance_count}"
   algorithm = "RSA"
   rsa_bits = "${var.key_type}"
 }
@@ -15,14 +15,14 @@ provider "acme" {
 
 # Set up a registration using a private key from tls_private_key
 resource "acme_registration" "reg" {
-  count = "${var.count}"
+  count = "${var.instance_count}"
   account_key_pem = "${element(tls_private_key.private_key.*.private_key_pem, count.index)}"
   email_address   = "${var.reg_email}"
 }
 
 # Create a certificate
 resource "acme_certificate" "certificate" {
-  count                     = "${var.count}"
+  count                     = "${var.instance_count}"
   account_key_pem           = "${element(acme_registration.reg.*.account_key_pem, count.index)}"
   common_name               = "${element(var.domains, count.index)}"
   subject_alternative_names = "${length(var.subject_alternative_names) > 0 ? var.subject_alternative_names[element(var.domains, count.index)] : []}"
